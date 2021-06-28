@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/netf/dagger/internal/pkg/deployer"
+	"github.com/netf/dagger/pkg/deployer"
 	"log"
 )
 

@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/bmatcuk/doublestar"
-	"github.com/netf/dagger/internal/pkg/gcshasher"
+	"github.com/netf/dagger/internal/gcshasher"
 	"io/ioutil"
 	"log"
 	"math/rand"
