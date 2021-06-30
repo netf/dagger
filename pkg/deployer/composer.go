@@ -92,6 +92,7 @@ func DagListDiff(a map[string]bool, b map[string]bool) map[string]bool {
 // shell out to call gsutil
 func gsutil(args ...string) ([]byte, error) {
 	c := exec.Command("gsutil", args...)
+	log.Printf("running gsutil %s", strings.Join(args, " "))
 	return c.CombinedOutput()
 }
 
@@ -113,7 +114,7 @@ func (c *ComposerEnv) assembleComposerRunCmd(subCmd string, args ...string) []st
 // it is a wrapper of gcloud composer environments run
 func (c *ComposerEnv) Run(subCmd string, args ...string) ([]byte, error) {
 	subCmdArgs := c.assembleComposerRunCmd(subCmd, args...)
-	log.Printf("running gcloud  with subCmd Args: %s", subCmdArgs)
+	log.Printf("running gcloud %s", strings.Join(subCmdArgs, " "))
 	cmd := exec.Command(
 		"gcloud", subCmdArgs...)
 	return cmd.CombinedOutput()
@@ -234,6 +235,8 @@ func FindDagFilesInLocalTree(dagsRoot string, dagNames map[string]bool) (map[str
 		}
 
 		relevantIgnores := make([]string, 0)
+		// Ignore anything with tmp
+		relevantIgnores = append(relevantIgnores, "tmp")
 		p := path
 
 		if ignores, ok := airflowignoreTree[p]; ok {
@@ -316,7 +319,6 @@ func FindDagFilesInLocalTree(dagsRoot string, dagNames map[string]bool) (map[str
 				matches[dagID] = append(matches[dagID], relPath)
 			}
 		}
-
 		return nil
 	})
 
@@ -351,7 +353,8 @@ func FindDagFilesInGcsPrefix(prefix string, dagFileNames map[string]bool) (map[s
 	if err != nil {
 		return nil, fmt.Errorf("error fetching dags dir from GCS: %v", err)
 	}
-	return FindDagFilesInLocalTree(filepath.Join(dir, "dags"), dagFileNames)
+	gcsBucket := strings.TrimPrefix(prefix, "gs://")
+	return FindDagFilesInLocalTree(filepath.Join(dir, gcsBucket, "dags"), dagFileNames)
 }
 
 func (c *ComposerEnv) getRestartDags(sameDags map[string]string) map[string]bool {
@@ -360,7 +363,7 @@ func (c *ComposerEnv) getRestartDags(sameDags map[string]string) map[string]bool
 		// We know that the file name = dag id from the dag validation test asseting this.
 		local := filepath.Join(c.LocalDagsPrefix, relPath)
 		gcs, err := url.Parse(c.DagBucketPrefix)
-		gcs.Path = path.Join(gcs.Path, relPath)
+		gcs.Path = path.Join(gcs.Path, "dags", relPath)
 		eq, err := gcshasher.LocalFileEqGCS(local, gcs.String())
 		if err != nil {
 			log.Printf("error comparing file hashes %s, attempting to restart: %s", err, dag)
@@ -380,7 +383,7 @@ type Dag struct {
 
 // GetStopAndStartDags uses set differences between dags running in the Composer
 // Environment and those in the running dags text config file.
-func (c *ComposerEnv) GetStopAndStartDags(filename string, replace bool) (map[string]string, map[string]string) {
+func (c *ComposerEnv) GetStopAndStartDags(filename string) (map[string]string, map[string]string) {
 	dagsToRun, err := ReadRunningDagsTxt(filename)
 	if err != nil {
 		log.Fatalf("couldn't read running_dags.txt: %v", filename)
@@ -406,12 +409,8 @@ func (c *ComposerEnv) GetStopAndStartDags(filename string, replace bool) (map[st
 	}
 	restartDags := c.getRestartDags(dagPathsSame)
 
-	if replace {
-		for k, v := range restartDags {
-			dagsToStop[k], dagsToStart[k] = v, v
-		}
-	} else {
-		log.Fatalf("FAILED: tried to overwite DAGs in place put replace=false the following existing dags: %#v", restartDags)
+	for k, v := range restartDags {
+		dagsToStop[k], dagsToStart[k] = v, v
 	}
 
 	log.Printf("DAGs to Stop:")
@@ -441,55 +440,53 @@ func (c *ComposerEnv) GetStopAndStartDags(filename string, replace bool) (map[st
 
 // ComposerEnv.stopDag pauses the dag, removes the dag definition file from gcs
 // and deletes the DAG from the airflow db.
-func (c *ComposerEnv) stopDag(dag string, relPath string, pauseOnly bool, wg *sync.WaitGroup) (err error) {
+func (c *ComposerEnv) stopDag(dag string, relPath string, wg *sync.WaitGroup) (err error) {
 	defer wg.Done()
 	log.Printf("pausing dag: %v with relPath: %v", dag, relPath)
 	out, err := c.Run("pause", dag)
 	if err != nil {
 		return fmt.Errorf("error pausing dag %v: %v", dag, string(out))
 	}
-	if !pauseOnly {
-		log.Printf("parsing gcs url %v", c.DagBucketPrefix)
-		gcs, err := url.Parse(c.DagBucketPrefix)
-		if err != nil {
-			panic("error parsing dag bucket prefix")
-		}
+	log.Printf("parsing gcs url %v", c.DagBucketPrefix)
+	gcs, err := url.Parse(c.DagBucketPrefix)
+	if err != nil {
+			  panic("error parsing dag bucket prefix")
+			  }
 
-		gcs.Path = path.Join(gcs.Path, relPath)
-		log.Printf("deleting %v", gcs.String())
-		out, err = gsutil("rm", gcs.String())
-		if err != nil {
-			panic("error deleting from gcs")
-		}
+	gcs.Path = path.Join(gcs.Path, "dags", relPath)
+	log.Printf("deleting %v", gcs.String())
+	out, err = gsutil("rm", gcs.String())
+	if err != nil {
+			  panic("error deleting from gcs")
+			  }
 
+	_, err = c.Run("delete_dag", dag)
+	if err != nil {
+			  panic("error deleteing dag")
+			  }
+
+	for i := 0; i < 5; i++ {
+		if err == nil {
+			break
+		}
+		log.Printf("Waiting 5s to retry")
+		dur, _ := time.ParseDuration("5s")
+		time.Sleep(dur)
+		log.Printf("Retrying delete %s", dag)
 		_, err = c.Run("delete_dag", dag)
-		if err != nil {
-			panic("error deleteing dag")
-		}
-
-		for i := 0; i < 5; i++ {
-			if err == nil {
-				break
-			}
-			log.Printf("Waiting 5s to retry")
-			dur, _ := time.ParseDuration("5s")
-			time.Sleep(dur)
-			log.Printf("Retrying delete %s", dag)
-			_, err = c.Run("delete_dag", dag)
-		}
-		if err != nil {
-			return fmt.Errorf("Retried 5x, pause still failing with: %v", string(out))
-		}
 	}
+	if err != nil {
+			  return fmt.Errorf("Retried 5x, pause still failing with: %v", string(out))
+			  }
 	return err
 }
 
 // StopDags deletes a list of dags in parallel go routines
-func (c *ComposerEnv) StopDags(dagsToStop map[string]string, pauseOnly bool) error {
+func (c *ComposerEnv) StopDags(dagsToStop map[string]string) error {
 	var stopWg sync.WaitGroup
 	for k, v := range dagsToStop {
 		stopWg.Add(1)
-		go c.stopDag(k, v, pauseOnly, &stopWg)
+		go c.stopDag(k, v, &stopWg)
 	}
 	stopWg.Wait()
 	return nil
@@ -530,7 +527,7 @@ func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg
 	if err != nil {
 		return fmt.Errorf("error parsing dags prefix %v", err)
 	}
-	gcs.Path = path.Join(gcs.Path, relPath)
+	gcs.Path = path.Join(gcs.Path, "dags", relPath)
 	_, err = gsutil("cp", loc, gcs.String())
 	if err != nil {
 		return fmt.Errorf("error copying file %v to gcs: %v", loc, err)
@@ -539,9 +536,12 @@ func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg
 	return err
 }
 
+func (c *ComposerEnv) StartMonitoringDag() error  {
+	c.Run("unpause", "airflow_monitoring")
+	return nil
+}
 // StartDags deploys a list of dags in parallel go routines
 func (c *ComposerEnv) StartDags(dagsFolder string, dagsToStart map[string]string) error {
-	c.Run("unpause", "airflow_monitoring")
 	var startWg sync.WaitGroup
 	for k, v := range dagsToStart {
 		startWg.Add(1)
