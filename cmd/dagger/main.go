@@ -48,11 +48,6 @@ func main() {
 			Value:    "",
 			Required: true,
 		},
-		cli.StringFlag{
-			Name:     "dagBucketPrefix",
-			Value:    "",
-			Required: true,
-		},
 	}
 	// we create our commands
 	app.Commands = []cli.Command{
@@ -68,19 +63,14 @@ func main() {
 					DagBucketPrefix: c.String("dagBucketPrefix"),
 					LocalDagsPrefix: c.String("dagsFolder"),
 				}
+				err := composer.Configure()
+				if err != nil {
+					fmt.Errorf("configure error #{err}")
+				}
 				dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("dagList"))
 				composer.StopDags(dagsToStop)
 				composer.StartDags(c.String("dagsFolder"), dagsToStart)
 				composer.StartMonitoringDag()
-				return nil
-			},
-		},
-		{
-			Name:  "aws",
-			Usage: "AWS Managed Workflow for Airflow",
-			Action: func(c *cli.Context) error {
-				// a simple lookup function
-				fmt.Println("Not implemented")
 				return nil
 			},
 		},

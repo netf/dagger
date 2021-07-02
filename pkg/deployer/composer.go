@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/bmatcuk/doublestar"
 	"github.com/netf/dagger/pkg/gcshasher"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -26,6 +27,18 @@ type ComposerEnv struct {
 	Location        string
 	DagBucketPrefix string
 	LocalDagsPrefix string
+}
+
+// Dag is a type for dag containing it's path
+type Dag struct {
+	ID   string
+	Path string
+}
+
+type Describe struct {
+	Config struct {
+		DagGcsPrefix string `yaml:"dagGcsPrefix"`
+	}
 }
 
 func logDagList(a map[string]bool) {
@@ -95,6 +108,27 @@ func gsutil(args ...string) ([]byte, error) {
 	log.Printf("running gsutil %s", strings.Join(args, " "))
 	return c.CombinedOutput()
 }
+
+func (c *ComposerEnv) Configure() error {
+	subCmdArgs := []string{
+		"composer", "environments", "describe",
+		c.Name,
+		fmt.Sprintf("--location=%s", c.Location),
+	}
+	log.Printf("running gcloud %s", strings.Join(subCmdArgs, " "))
+	cmd := exec.Command(
+		"gcloud", subCmdArgs...)
+
+	var config Describe
+	data, err := cmd.CombinedOutput()
+	if err != nil {
+		return  err
+	}
+	yaml.Unmarshal(data, &config)
+	c.DagBucketPrefix = config.Config.DagGcsPrefix
+	return nil
+}
+
 
 func (c *ComposerEnv) assembleComposerRunCmd(subCmd string, args ...string) []string {
 	subCmdArgs := []string{
@@ -353,8 +387,7 @@ func FindDagFilesInGcsPrefix(prefix string, dagFileNames map[string]bool) (map[s
 	if err != nil {
 		return nil, fmt.Errorf("error fetching dags dir from GCS: %v", err)
 	}
-	gcsBucket := strings.TrimPrefix(prefix, "gs://")
-	return FindDagFilesInLocalTree(filepath.Join(dir, gcsBucket, "dags"), dagFileNames)
+	return FindDagFilesInLocalTree(filepath.Join(dir, "dags"), dagFileNames)
 }
 
 func (c *ComposerEnv) getRestartDags(sameDags map[string]string) map[string]bool {
@@ -363,7 +396,7 @@ func (c *ComposerEnv) getRestartDags(sameDags map[string]string) map[string]bool
 		// We know that the file name = dag id from the dag validation test asseting this.
 		local := filepath.Join(c.LocalDagsPrefix, relPath)
 		gcs, err := url.Parse(c.DagBucketPrefix)
-		gcs.Path = path.Join(gcs.Path, "dags", relPath)
+		gcs.Path = path.Join(gcs.Path, relPath)
 		eq, err := gcshasher.LocalFileEqGCS(local, gcs.String())
 		if err != nil {
 			log.Printf("error comparing file hashes %s, attempting to restart: %s", err, dag)
@@ -375,11 +408,6 @@ func (c *ComposerEnv) getRestartDags(sameDags map[string]string) map[string]bool
 	return dagsToRestart
 }
 
-// Dag is a type for dag containing it's path
-type Dag struct {
-	ID   string
-	Path string
-}
 
 // GetStopAndStartDags uses set differences between dags running in the Composer
 // Environment and those in the running dags text config file.
@@ -453,7 +481,7 @@ func (c *ComposerEnv) stopDag(dag string, relPath string, wg *sync.WaitGroup) (e
 			  panic("error parsing dag bucket prefix")
 			  }
 
-	gcs.Path = path.Join(gcs.Path, "dags", relPath)
+	gcs.Path = path.Join(gcs.Path, relPath)
 	log.Printf("deleting %v", gcs.String())
 	out, err = gsutil("rm", gcs.String())
 	if err != nil {
@@ -527,7 +555,7 @@ func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg
 	if err != nil {
 		return fmt.Errorf("error parsing dags prefix %v", err)
 	}
-	gcs.Path = path.Join(gcs.Path, "dags", relPath)
+	gcs.Path = path.Join(gcs.Path, relPath)
 	_, err = gsutil("cp", loc, gcs.String())
 	if err != nil {
 		return fmt.Errorf("error copying file %v to gcs: %v", loc, err)
