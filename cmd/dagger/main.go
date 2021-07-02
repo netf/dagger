@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/netf/dagger/pkg/deployer"
+	"github.com/netf/dagger/pkg/deploy"
 	"github.com/urfave/cli"
 	"log"
 	"os"
@@ -22,54 +22,60 @@ func main() {
 
 	app := cli.NewApp()
 	app.Name = "dagger"
-	app.Usage = "DAG deployment tool"
+	app.Usage = "DAG management tool"
 
 	myFlags := []cli.Flag{
 		cli.StringFlag{
-			Name:  "dagList",
+			Name:  "list",
 			Value: "./config/running_dags.txt",
+			Required: true,
+			Usage: "File with DAGs to run",
 		},
 		cli.StringFlag{
-			Name:  "dagsFolder",
+			Name:  "dags",
 			Value: "./dags",
+			Usage: "DAGs folder",
+			Required: true,
 		},
 		cli.StringFlag{
 			Name:     "project",
 			Value:    "",
 			Required: true,
+			Usage: "GCP project name",
 		},
 		cli.StringFlag{
-			Name:     "region",
+			Name:     "location",
 			Value:    "",
 			Required: true,
+			Usage: "GCP Composer location",
 		},
 		cli.StringFlag{
-			Name:     "composerEnv",
+			Name:     "name",
 			Value:    "",
 			Required: true,
+			Usage: "Name of GCP Composer environment",
 		},
 	}
 	// we create our commands
 	app.Commands = []cli.Command{
 		{
-			Name:  "gcp",
-			Usage: "GCP Composer",
+			Name:  "deploy",
+			Usage: "Deploy DAGs to GCP Composer",
 			Flags: myFlags,
 			Action: func(c *cli.Context) error {
-				composer := deployer.ComposerEnv{
-					Name:           c.String("composerEnv"),
+				composer := deploy.ComposerEnv{
+					Name:           c.String("name"),
 					Project:        c.String("project"),
-					Location:       c.String("region"),
-					DagBucketPrefix: c.String("dagBucketPrefix"),
-					LocalDagsPrefix: c.String("dagsFolder"),
+					Location:       c.String("location"),
+					LocalDagsPrefix: c.String("dags"),
 				}
 				err := composer.Configure()
 				if err != nil {
 					fmt.Errorf("configure error #{err}")
 				}
-				dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("dagList"))
+				dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))
 				composer.StopDags(dagsToStop)
-				composer.StartDags(c.String("dagsFolder"), dagsToStart)
+				composer.StartDags(c.String("dags"), dagsToStart)
 				composer.StartMonitoringDag()
 				return nil
 			},
