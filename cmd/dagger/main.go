@@ -6,6 +6,7 @@ import (
 	"github.com/urfave/cli"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
@@ -55,6 +56,10 @@ func main() {
 			Required: true,
 			Usage: "Name of GCP Composer environment",
 		},
+		cli.BoolFlag{
+			Name:     "loop",
+			Usage: "Run Dagger in a loop (useful for continues sync)",
+		},
 	}
 	// we create our commands
 	app.Commands = []cli.Command{
@@ -63,20 +68,26 @@ func main() {
 			Usage: "Sync DAGs to GCP Composer",
 			Flags: flags,
 			Action: func(c *cli.Context) error {
-				composer := deploy.ComposerEnv{
-					Name:           c.String("name"),
-					Project:        c.String("project"),
-					Location:       c.String("location"),
-					LocalDagsPrefix: c.String("dags"),
+				for {
+					composer := deploy.ComposerEnv{
+						Name:            c.String("name"),
+						Project:         c.String("project"),
+						Location:        c.String("location"),
+						LocalDagsPrefix: c.String("dags"),
+					}
+					err := composer.Configure()
+					if err != nil {
+						fmt.Errorf("configure error #{err}")
+					}
+					dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))
+					composer.StopDags(dagsToStop)
+					composer.StartDags(c.String("dags"), dagsToStart)
+					composer.StartMonitoringDag()
+					if !c.Bool("loop") {
+						break
+					}
+					time.Sleep(5 * time.Second)
 				}
-				err := composer.Configure()
-				if err != nil {
-					fmt.Errorf("configure error #{err}")
-				}
-				dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))
-				composer.StopDags(dagsToStop)
-				composer.StartDags(c.String("dags"), dagsToStart)
-				composer.StartMonitoringDag()
 				return nil
 			},
 		},
