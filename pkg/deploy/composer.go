@@ -43,7 +43,7 @@ type Describe struct {
 
 func logDagList(a map[string]bool) {
 	for k := range a {
-		log.Printf("\t%s", k)
+		log.Printf("=> \t%s", k)
 	}
 	return
 }
@@ -65,7 +65,7 @@ func ReadRunningDagsTxt(filename string) (map[string]bool, error) {
 	for sc.Scan() {
 		dagsToRun[sc.Text()] = true
 	}
-	log.Printf("Read dagsToRun from %s:", filename)
+	log.Printf("reading DAGs to run from %s:", filename)
 	logDagList(dagsToRun)
 	return dagsToRun, err
 }
