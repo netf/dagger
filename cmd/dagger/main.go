@@ -24,7 +24,7 @@ func main() {
 	app.Name = "dagger"
 	app.Usage = "DAG management tool"
 
-	myFlags := []cli.Flag{
+	flags := []cli.Flag{
 		cli.StringFlag{
 			Name:  "list",
 			Value: "./config/running_dags.txt",
@@ -61,7 +61,7 @@ func main() {
 		{
 			Name:  "sync",
 			Usage: "Sync DAGs to GCP Composer",
-			Flags: myFlags,
+			Flags: flags,
 			Action: func(c *cli.Context) error {
 				composer := deploy.ComposerEnv{
 					Name:           c.String("name"),
