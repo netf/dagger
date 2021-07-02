@@ -59,8 +59,8 @@ func main() {
 	// we create our commands
 	app.Commands = []cli.Command{
 		{
-			Name:  "deploy",
-			Usage: "Deploy DAGs to GCP Composer",
+			Name:  "sync",
+			Usage: "Sync DAGs to GCP Composer",
 			Flags: myFlags,
 			Action: func(c *cli.Context) error {
 				composer := deploy.ComposerEnv{
