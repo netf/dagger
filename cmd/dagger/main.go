@@ -83,11 +83,11 @@ func main() {
 				}
 				err := composer.Configure()
 				if err != nil {
-					fmt.Errorf("configure error #{err}")
+					log.Fatalf("configure error #{err}")
 				}
 				err = composer.SyncPlugins()
 				if err != nil {
-					fmt.Errorf("sync plugins error #{err}")
+					log.Fatalf("sync plugins error #{err}")
 				}
 				for {
 					dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))
