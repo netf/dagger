@@ -131,9 +131,9 @@ func (c *ComposerEnv) Configure() error {
 }
 
 func (c *ComposerEnv) SyncPlugins() error {
-	pluginsPrefix := strings.Replace(c.DagBucketPrefix, "/dags", "/plugins", 1)
-	log.Printf("syncing plugins from %s to %s\n", c.LocalPluginsDir, pluginsPrefix)
-	_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalPluginsDir, pluginsPrefix)
+	pluginsSuffix := strings.Replace(c.DagBucketPrefix, "/dags", "/plugins", 1)
+	log.Printf("syncing plugins from %s to %s\n", c.LocalPluginsDir, pluginsSuffix)
+	_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalPluginsDir, pluginsSuffix)
 	if err != nil {
 		return err
 	}
