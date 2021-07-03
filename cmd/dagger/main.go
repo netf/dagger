@@ -39,6 +39,12 @@ func main() {
 			Required: true,
 		},
 		cli.StringFlag{
+			Name:  "plugins",
+			Value: "./plugins",
+			Usage: "Airflow plugins",
+			Required: false,
+		},
+		cli.StringFlag{
 			Name:     "project",
 			Value:    "",
 			Required: true,
@@ -68,17 +74,22 @@ func main() {
 			Usage: "Sync DAGs to GCP Composer",
 			Flags: flags,
 			Action: func(c *cli.Context) error {
+				composer := deploy.ComposerEnv{
+					Name:            c.String("name"),
+					Project:         c.String("project"),
+					Location:        c.String("location"),
+					LocalDagsDir: 	 c.String("dags"),
+					LocalPluginsDir: c.String("plugins"),
+				}
+				err := composer.Configure()
+				if err != nil {
+					fmt.Errorf("configure error #{err}")
+				}
+				err = composer.SyncPlugins()
+				if err != nil {
+					fmt.Errorf("sync plugins error #{err}")
+				}
 				for {
-					composer := deploy.ComposerEnv{
-						Name:            c.String("name"),
-						Project:         c.String("project"),
-						Location:        c.String("location"),
-						LocalDagsPrefix: c.String("dags"),
-					}
-					err := composer.Configure()
-					if err != nil {
-						fmt.Errorf("configure error #{err}")
-					}
 					dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))
 					composer.StopDags(dagsToStop)
 					composer.StartDags(c.String("dags"), dagsToStart)
@@ -86,7 +97,7 @@ func main() {
 					if !c.Bool("loop") {
 						break
 					}
-					time.Sleep(5 * time.Second)
+					time.Sleep(60 * time.Second)
 				}
 				return nil
 			},

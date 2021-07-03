@@ -25,8 +25,9 @@ type ComposerEnv struct {
 	Name            string
 	Project         string
 	Location        string
-	DagBucketPrefix string
-	LocalDagsPrefix string
+	DagBucketPrefix  string
+	LocalDagsDir 	string
+	LocalPluginsDir string
 }
 
 // Dag is a type for dag containing it's path
@@ -126,6 +127,16 @@ func (c *ComposerEnv) Configure() error {
 	}
 	yaml.Unmarshal(data, &config)
 	c.DagBucketPrefix = config.Config.DagGcsPrefix
+	return nil
+}
+
+func (c *ComposerEnv) SyncPlugins() error {
+	pluginsPrefix := strings.Replace(c.DagBucketPrefix, "/dags", "/plugins", 1)
+	log.Printf("syncing plugins from %s to %s\n", c.LocalPluginsDir, pluginsPrefix)
+	_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalPluginsDir, pluginsPrefix)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -394,7 +405,7 @@ func (c *ComposerEnv) getRestartDags(sameDags map[string]string) map[string]bool
 	dagsToRestart := make(map[string]bool)
 	for dag, relPath := range sameDags {
 		// We know that the file name = dag id from the dag validation test asseting this.
-		local := filepath.Join(c.LocalDagsPrefix, relPath)
+		local := filepath.Join(c.LocalDagsDir, relPath)
 		gcs, err := url.Parse(c.DagBucketPrefix)
 		gcs.Path = path.Join(gcs.Path, relPath)
 		eq, err := gcshasher.LocalFileEqGCS(local, gcs.String())
@@ -454,7 +465,7 @@ func (c *ComposerEnv) GetStopAndStartDags(filename string) (map[string]string, m
 	for k, v := range dagPathListsToStop {
 		dagPathsToStop[k] = v[0]
 	}
-	dagPathListsToStart, err := FindDagFilesInLocalTree(c.LocalDagsPrefix, dagsToStart)
+	dagPathListsToStart, err := FindDagFilesInLocalTree(c.LocalDagsDir, dagsToStart)
 	if err != nil {
 		log.Fatalf("error finding dags to start: %v", err)
 	}
