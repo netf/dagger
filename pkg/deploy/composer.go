@@ -125,7 +125,6 @@ func (c *ComposerEnv) Configure() error {
 	if err != nil {
 		return  err
 	}
-	fmt.Println(data)
 	yaml.Unmarshal(data, &config)
 	c.DagBucketPrefix = config.Config.DagGcsPrefix
 	return nil
