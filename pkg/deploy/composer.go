@@ -154,7 +154,7 @@ func (c *ComposerEnv) SyncData() error {
 
 func (c *ComposerEnv) ImportConfig () error {
 	if c.ConfigFile != "" {
-		out, err := c.Run("variables", "--", "import", c.ConfigFile)
+		out, err := c.Run("variables", "import", c.ConfigFile)
 		if err != nil {
 			log.Fatalf("import failed: %s with %s", err, out)
 		}
