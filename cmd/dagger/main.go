@@ -45,6 +45,12 @@ func main() {
 			Required: false,
 		},
 		cli.StringFlag{
+			Name:  "data",
+			Value: "./data",
+			Usage: "Airflow data (ie: sql files)",
+			Required: false,
+		},
+		cli.StringFlag{
 			Name:     "project",
 			Value:    "",
 			Required: true,
@@ -80,6 +86,7 @@ func main() {
 					Location:        c.String("location"),
 					LocalDagsDir: 	 c.String("dags"),
 					LocalPluginsDir: c.String("plugins"),
+					LocalDataDir: 	 c.String("data"),
 				}
 				err := composer.Configure()
 				if err != nil {
@@ -88,6 +95,10 @@ func main() {
 				err = composer.SyncPlugins()
 				if err != nil {
 					log.Fatalf("sync plugins error: %s", err)
+				}
+				err = composer.SyncData()
+				if err != nil {
+					log.Fatalf("sync data error: %s", err)
 				}
 				for {
 					dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))

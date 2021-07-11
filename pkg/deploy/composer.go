@@ -28,6 +28,7 @@ type ComposerEnv struct {
 	DagBucketPrefix  string
 	LocalDagsDir 	string
 	LocalPluginsDir string
+	LocalDataDir 	string
 }
 
 // Dag is a type for dag containing it's path
@@ -134,6 +135,16 @@ func (c *ComposerEnv) SyncPlugins() error {
 	pluginsSuffix := strings.Replace(c.DagBucketPrefix, "/dags", "/plugins", 1)
 	log.Printf("syncing plugins from %s to %s\n", c.LocalPluginsDir, pluginsSuffix)
 	_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalPluginsDir, pluginsSuffix)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ComposerEnv) SyncData() error {
+	dataSuffix := strings.Replace(c.DagBucketPrefix, "/dags", "/data", 1)
+	log.Printf("syncing data from %s to %s\n", c.LocalDataDir, dataSuffix)
+	_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalDataDir, dataSuffix)
 	if err != nil {
 		return err
 	}
