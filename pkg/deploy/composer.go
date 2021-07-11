@@ -159,7 +159,7 @@ func (c *ComposerEnv) ImportConfig () error {
 			log.Fatalf("import failed: %s with %s", err, out)
 		}
 		log.Printf("Imported variables configuration: %s", c.ConfigFile)
-		log.Printf("Output: %s", out)
+		log.Printf("Output: \n%s", out)
 		return err
 	}
 	return nil
