@@ -29,6 +29,7 @@ type ComposerEnv struct {
 	LocalDagsDir 	string
 	LocalPluginsDir string
 	LocalDataDir 	string
+	ConfigFile 		string
 }
 
 // Dag is a type for dag containing it's path
@@ -146,6 +147,18 @@ func (c *ComposerEnv) SyncData() error {
 	log.Printf("syncing data from %s to %s\n", c.LocalDataDir, dataSuffix)
 	_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalDataDir, dataSuffix)
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ComposerEnv) ImportConfig () error {
+	if c.ConfigFile != "" {
+		out, err := c.Run("variables -- import %s", c.ConfigFile)
+		if err != nil {
+			log.Fatalf("import failed: %s with %s", err, out)
+		}
+		log.Printf("Imported variables configuration: %s", c.ConfigFile)
 		return err
 	}
 	return nil
