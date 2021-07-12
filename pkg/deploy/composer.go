@@ -29,7 +29,7 @@ type ComposerEnv struct {
 	LocalDagsDir 	string
 	LocalPluginsDir string
 	LocalDataDir 	string
-	ConfigFile 		string
+	VariablesFile 	string
 }
 
 // Dag is a type for dag containing it's path
@@ -152,13 +152,13 @@ func (c *ComposerEnv) SyncData() error {
 	return nil
 }
 
-func (c *ComposerEnv) ImportConfig () error {
-	if c.ConfigFile != "" {
-		out, err := c.Run("variables", "import", c.ConfigFile)
+func (c *ComposerEnv) ImportVariables () error {
+	if c.VariablesFile != "" {
+		out, err := c.Run("variables", "import", c.VariablesFile)
 		if err != nil {
 			log.Fatalf("import failed: %s with %s", err, out)
 		}
-		log.Printf("Imported variables configuration: %s", c.ConfigFile)
+		log.Printf("Imported variables: %s", c.VariablesFile)
 		log.Printf("Output: \n%s", out)
 		return err
 	}

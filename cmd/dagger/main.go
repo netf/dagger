@@ -69,10 +69,10 @@ func main() {
 			Usage: "Name of GCP Composer environment",
 		},
 		cli.StringFlag{
-			Name:     "config",
+			Name:     "variables",
 			Value:    "",
 			Required: false,
-			Usage: "Airflow variables config",
+			Usage: "Airflow variables config file",
 		},
 		cli.BoolFlag{
 			Name:     "loop",
@@ -93,7 +93,7 @@ func main() {
 					LocalDagsDir: 	 c.String("dags"),
 					LocalPluginsDir: c.String("plugins"),
 					LocalDataDir: 	 c.String("data"),
-					ConfigFile: 	 	 c.String("config"),
+					VariablesFile: 	 c.String("variables"),
 				}
 				err := composer.Configure()
 				if err != nil {
@@ -107,7 +107,7 @@ func main() {
 				if err != nil {
 					log.Fatalf("sync data error: %s", err)
 				}
-				err = composer.ImportConfig()
+				err = composer.ImportVariables()
 				if err != nil {
 					log.Fatalf("import variables error: %s", err)
 				}
