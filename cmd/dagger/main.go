@@ -105,6 +105,8 @@ func main() {
 				fmt.Println("Deploying to: ")
 				fmt.Printf("Composer environment: %s\n", c.String("name"))
 				fmt.Printf("Project: %s, Location: %s\n", c.String("project"), c.String("location"))
+				fmt.Println("Sleeping for 5 seconds")
+				time.Sleep(5)
 				err := composer.Configure()
 				if err != nil {
 					log.Fatalf("configure error: %s", err)
