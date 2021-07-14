@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"github.com/bmatcuk/doublestar"
 	"github.com/netf/dagger/pkg/gcshasher"
@@ -25,17 +26,30 @@ type ComposerEnv struct {
 	Name            string
 	Project         string
 	Location        string
-	DagBucketPrefix  string
-	LocalDagsDir 	string
+	DagBucketPrefix string
+	LocalDagsDir    string
 	LocalPluginsDir string
-	LocalDataDir 	string
-	VariablesFile 	string
+	LocalDataDir    string
+	VariablesFile   string
+	ConnectionsFile string
 }
 
 // Dag is a type for dag containing it's path
 type Dag struct {
 	ID   string
 	Path string
+}
+
+type Connection struct {
+	Name      string                `json:"name"`
+	Uri      string                 `json:"uri"`
+	Type     string                 `json:"type"`
+	Schema   string                 `json:"schema"`
+	Port     string                 `json:"port"`
+	Password string                 `json:"password"`
+	Login    string                 `json:"login"`
+	Host     string                 `json:"host"`
+	Extra    map[string]interface{} `json:"extra"`
 }
 
 type Describe struct {
@@ -125,7 +139,7 @@ func (c *ComposerEnv) Configure() error {
 	var config Describe
 	data, err := cmd.CombinedOutput()
 	if err != nil {
-		return  err
+		return err
 	}
 	yaml.Unmarshal(data, &config)
 	c.DagBucketPrefix = config.Config.DagGcsPrefix
@@ -152,11 +166,11 @@ func (c *ComposerEnv) SyncData() error {
 	return nil
 }
 
-func (c *ComposerEnv) ImportVariables () error {
+func (c *ComposerEnv) ImportVariables() error {
 	if c.VariablesFile != "" {
 		out, err := c.Run("variables", "import", c.VariablesFile)
 		if err != nil {
-			log.Fatalf("import failed: %s with %s", err, out)
+			log.Fatalf("Variables import failed: %s with %s", err, out)
 		}
 		log.Printf("Imported variables: %s", c.VariablesFile)
 		log.Printf("Output: \n%s", out)
@@ -165,6 +179,46 @@ func (c *ComposerEnv) ImportVariables () error {
 	return nil
 }
 
+func (c *ComposerEnv) ImportConnections() error {
+	if c.ConnectionsFile != "" {
+		file, _ := ioutil.ReadFile(c.ConnectionsFile)
+		var connections []Connection
+		_ = json.Unmarshal(file, &connections)
+
+		for i := 0; i < len(connections); i++ {
+			out, err := c.Run("connections", "delete",
+				connections[i].Name,
+			)
+			if err != nil {
+				log.Fatalf("Connections delete failed: %s with %s", err, out)
+			}
+			extra, err := json.Marshal(connections[i].Extra)
+			if err != nil {
+				log.Fatalf("Connections json marshal failed: %s", err)
+			}
+
+			out, err = c.Run("connections", "add",
+				"--conn-uri", connections[i].Uri,
+				"--conn-type", connections[i].Type,
+				"--conn-schema", connections[i].Schema,
+				"--conn-port", connections[i].Port,
+				"--conn-password", connections[i].Password,
+				"--conn-login", connections[i].Login,
+				"--conn-host", connections[i].Host,
+				"--conn-extra", string(extra),
+				connections[i].Name,
+			)
+			if err != nil {
+				log.Fatalf("Connections import failed: %s with %s", err, out)
+			}
+			log.Printf("Imported variables: %s", c.ConnectionsFile)
+			log.Printf("Output: \n%s", out)
+			return err
+		}
+
+	}
+	return nil
+}
 
 func (c *ComposerEnv) assembleComposerRunCmd(subCmd string, args ...string) []string {
 	subCmdArgs := []string{
@@ -444,7 +498,6 @@ func (c *ComposerEnv) getRestartDags(sameDags map[string]string) map[string]bool
 	return dagsToRestart
 }
 
-
 // GetStopAndStartDags uses set differences between dags running in the Composer
 // Environment and those in the running dags text config file.
 func (c *ComposerEnv) GetStopAndStartDags(filename string) (map[string]string, map[string]string) {
@@ -514,20 +567,20 @@ func (c *ComposerEnv) stopDag(dag string, relPath string, wg *sync.WaitGroup) (e
 	log.Printf("parsing gcs url %v", c.DagBucketPrefix)
 	gcs, err := url.Parse(c.DagBucketPrefix)
 	if err != nil {
-			  panic("error parsing dag bucket prefix")
-			  }
+		panic("error parsing dag bucket prefix")
+	}
 
 	gcs.Path = path.Join(gcs.Path, relPath)
 	log.Printf("deleting %v", gcs.String())
 	out, err = gsutil("rm", gcs.String())
 	if err != nil {
-			  panic("error deleting from gcs")
-			  }
+		panic("error deleting from gcs")
+	}
 
 	_, err = c.Run("delete_dag", dag)
 	if err != nil {
-			  panic("error deleteing dag")
-			  }
+		panic("error deleteing dag")
+	}
 
 	for i := 0; i < 5; i++ {
 		if err == nil {
@@ -540,8 +593,8 @@ func (c *ComposerEnv) stopDag(dag string, relPath string, wg *sync.WaitGroup) (e
 		_, err = c.Run("delete_dag", dag)
 	}
 	if err != nil {
-			  return fmt.Errorf("Retried 5x, pause still failing with: %v", string(out))
-			  }
+		return fmt.Errorf("Retried 5x, pause still failing with: %v", string(out))
+	}
 	return err
 }
 
@@ -600,10 +653,11 @@ func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg
 	return err
 }
 
-func (c *ComposerEnv) StartMonitoringDag() error  {
+func (c *ComposerEnv) StartMonitoringDag() error {
 	c.Run("unpause", "airflow_monitoring")
 	return nil
 }
+
 // StartDags deploys a list of dags in parallel go routines
 func (c *ComposerEnv) StartDags(dagsFolder string, dagsToStart map[string]string) error {
 	var startWg sync.WaitGroup

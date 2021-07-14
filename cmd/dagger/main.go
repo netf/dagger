@@ -74,6 +74,12 @@ func main() {
 			Required: false,
 			Usage: "Airflow variables config file",
 		},
+		cli.StringFlag{
+			Name:     "connections",
+			Value:    "",
+			Required: false,
+			Usage: "Airflow connections config file",
+		},
 		cli.BoolFlag{
 			Name:     "loop",
 			Usage: "Run Dagger in a loop (useful for continues sync)",
@@ -94,7 +100,11 @@ func main() {
 					LocalPluginsDir: c.String("plugins"),
 					LocalDataDir: 	 c.String("data"),
 					VariablesFile: 	 c.String("variables"),
+					ConnectionsFile: c.String("connections"),
 				}
+				fmt.Println("Deploying to: ")
+				fmt.Printf("Composer environment: %s\n", c.String("name"))
+				fmt.Printf("Project: %s, Location: %s\n", c.String("project"), c.String("location"))
 				err := composer.Configure()
 				if err != nil {
 					log.Fatalf("configure error: %s", err)
@@ -108,6 +118,10 @@ func main() {
 					log.Fatalf("sync data error: %s", err)
 				}
 				err = composer.ImportVariables()
+				if err != nil {
+					log.Fatalf("import variables error: %s", err)
+				}
+				err = composer.ImportConnections()
 				if err != nil {
 					log.Fatalf("import variables error: %s", err)
 				}
