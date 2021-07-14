@@ -94,8 +94,6 @@ func main() {
 			Action: func(c *cli.Context) error {
 				fmt.Printf("Composer environment: %s\n", c.String("name"))
 				fmt.Printf("Project: %s, Location: %s\n", c.String("project"), c.String("location"))
-				fmt.Println("Sleeping for 5 seconds")
-				time.Sleep(5)
 				fmt.Println()
 				composer := deploy.ComposerEnv{
 					Name:            c.String("name"),
