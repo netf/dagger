@@ -92,6 +92,11 @@ func main() {
 			Usage: "Sync DAGs to GCP Composer",
 			Flags: flags,
 			Action: func(c *cli.Context) error {
+				fmt.Printf("Composer environment: %s\n", c.String("name"))
+				fmt.Printf("Project: %s, Location: %s\n", c.String("project"), c.String("location"))
+				fmt.Println("Sleeping for 5 seconds")
+				time.Sleep(5)
+				fmt.Println()
 				composer := deploy.ComposerEnv{
 					Name:            c.String("name"),
 					Project:         c.String("project"),
@@ -102,11 +107,6 @@ func main() {
 					VariablesFile: 	 c.String("variables"),
 					ConnectionsFile: c.String("connections"),
 				}
-				fmt.Println("Deploying to: ")
-				fmt.Printf("Composer environment: %s\n", c.String("name"))
-				fmt.Printf("Project: %s, Location: %s\n", c.String("project"), c.String("location"))
-				fmt.Println("Sleeping for 5 seconds")
-				time.Sleep(5)
 				err := composer.Configure()
 				if err != nil {
 					log.Fatalf("configure error: %s", err)
