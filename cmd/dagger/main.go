@@ -125,15 +125,15 @@ func main() {
 				if err != nil {
 					log.Fatalf("import variables error: %s", err)
 				}
+				dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))
+				composer.StopDags(dagsToStop)
+				composer.StartDags(c.String("dags"), dagsToStart)
+				composer.StartMonitoringDag()
 				for {
-					dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))
-					composer.StopDags(dagsToStop)
-					composer.StartDags(c.String("dags"), dagsToStart)
-					composer.StartMonitoringDag()
 					if !c.Bool("loop") {
 						break
 					}
-					time.Sleep(24 * time.Hour)
+					time.Sleep(1 * time.Hour)
 				}
 				return nil
 			},
