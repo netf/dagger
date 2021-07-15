@@ -133,7 +133,7 @@ func main() {
 					if !c.Bool("loop") {
 						break
 					}
-					time.Sleep(60 * time.Second)
+					time.Sleep(24 * time.Hour)
 				}
 				return nil
 			},
