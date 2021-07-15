@@ -645,8 +645,7 @@ func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg
 		return fmt.Errorf("error parsing dags prefix %v", err)
 	}
 	gcs.Path = path.Join(gcs.Path, relPath)
-	//_, err = gsutil("cp", loc, gcs.String())
-	_, err = gsutil("-m", "rsync", "-r", "-d", loc, gcs.String())
+	_, err = gsutil("cp", loc, gcs.String())
 	if err != nil {
 		return fmt.Errorf("error copying file %v to gcs: %v", loc, err)
 	}
