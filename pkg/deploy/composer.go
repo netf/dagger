@@ -419,6 +419,7 @@ func (c *ComposerEnv) assembleComposerRunCmd(subCmd string, args ...string) []st
 		"composer", "environments", "run",
 		c.Name,
 		fmt.Sprintf("--location=%s", c.Location),
+		"--verbosity=debug",
 		subCmd}
 
 	if len(args) > 0 {
