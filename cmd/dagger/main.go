@@ -117,14 +117,14 @@ func main() {
 				if err != nil {
 					log.Fatalf("sync data error: %s", err)
 				}
-				err = composer.ImportVariables()
-				if err != nil {
-					log.Fatalf("import variables error: %s", err)
-				}
-				err = composer.ImportConnections()
-				if err != nil {
-					log.Fatalf("import variables error: %s", err)
-				}
+				//err = composer.ImportVariables()
+				//if err != nil {
+				//	log.Fatalf("import variables error: %s", err)
+				//}
+				//err = composer.ImportConnections()
+				//if err != nil {
+				//	log.Fatalf("import variables error: %s", err)
+				//}
 				dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))
 				composer.StopDags(dagsToStop)
 				composer.StartDags(c.String("dags"), dagsToStart)
