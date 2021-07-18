@@ -302,13 +302,6 @@ func ListFiles(bucket string, prefix string) ([]string, error) {
 	return objectPath, nil
 }
 
-// shell out to call gsutil
-//func gsutil(args ...string) ([]byte, error) {
-//	c := exec.Command("gsutil", args...)
-//	log.Printf("running gsutil %s", strings.Join(args, " "))
-//	return c.CombinedOutput()
-//}
-
 func (c *ComposerEnv) Configure() error {
 	subCmdArgs := []string{
 		"composer", "environments", "describe",
@@ -331,14 +324,6 @@ func (c *ComposerEnv) Configure() error {
 
 func (c *ComposerEnv) SyncPlugins() error {
 	bucket := strings.TrimSuffix(strings.TrimPrefix(c.DagBucketPrefix, "gs://"), "/dags")
-
-	//pluginsSuffix := strings.Replace(c.DagBucketPrefix, "/dags", "/plugins", 1)
-	//log.Printf("syncing plugins from %s to %s\n", c.LocalPluginsDir, pluginsSuffix)
-	//_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalPluginsDir, pluginsSuffix)
-	//err = BulkDownload(bucket, "dags/", "/tmp/")
-	//if err != nil {
-	//	return err
-	//}
 	log.Printf("syncing plugins from %s\n", c.LocalPluginsDir)
 	err := BulkUpload(bucket, "plugins", c.LocalPluginsDir)
 	if err != nil {
@@ -349,9 +334,6 @@ func (c *ComposerEnv) SyncPlugins() error {
 
 func (c *ComposerEnv) SyncData() error {
 	bucket := strings.TrimSuffix(strings.TrimPrefix(c.DagBucketPrefix, "gs://"), "/dags")
-	//dataSuffix := strings.Replace(c.DagBucketPrefix, "/dags", "/data", 1)
-	//log.Printf("syncing data from %s to %s\n", c.LocalDataDir, dataSuffix)
-	//_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalDataDir, dataSuffix)
 	log.Printf("syncing data from %s\n", c.LocalDataDir)
 	err := BulkUpload(bucket, "data", c.LocalDataDir)
 	if err != nil {
@@ -672,10 +654,6 @@ func FindDagFilesInGcsPrefix(prefix string, dagFileNames map[string]bool) (map[s
 	if err != nil {
 		return nil, err
 	}
-	//_, err = gsutil("-m", "cp", "-r", prefix, dir)
-	//if err != nil {
-	//	return nil, fmt.Errorf("error fetching dags dir from GCS: %v", err)
-	//}
 	return FindDagFilesInLocalTree(filepath.Join(dir, "dags"), dagFileNames)
 }
 
@@ -772,7 +750,6 @@ func (c *ComposerEnv) stopDag(dag string, relPath string, wg *sync.WaitGroup) (e
 
 	gcs.Path = path.Join(gcs.Path, relPath)
 	log.Printf("deleting %v", gcs.String())
-	//out, err = gsutil("rm", gcs.String())
 	err = DeleteFile(bucket, fmt.Sprintf("dags/%s", relPath))
 	if err != nil {
 		panic("error deleting from gcs")
@@ -851,10 +828,6 @@ func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg
 	if err != nil {
 		return fmt.Errorf("error copying file %v to gcs: %v", loc, err)
 	}
-	//_, err = gsutil("cp", loc, gcs.String())
-	//if err != nil {
-	//	return fmt.Errorf("error copying file %v to gcs: %v", loc, err)
-	//}
 	c.waitForDeploy(dag)
 	return err
 }
