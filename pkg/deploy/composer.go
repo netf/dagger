@@ -2,11 +2,16 @@ package deploy
 
 import (
 	"bufio"
+	"cloud.google.com/go/storage"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/bmatcuk/doublestar"
+	"github.com/netf/dagger/internal"
 	"github.com/netf/dagger/pkg/gcshasher"
+	"google.golang.org/api/iterator"
 	"gopkg.in/yaml.v2"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -119,12 +124,190 @@ func DagListDiff(a map[string]bool, b map[string]bool) map[string]bool {
 	return diff
 }
 
-// shell out to call gsutil
-func gsutil(args ...string) ([]byte, error) {
-	c := exec.Command("gsutil", args...)
-	log.Printf("running gsutil %s", strings.Join(args, " "))
-	return c.CombinedOutput()
+func Upload(bucket, object, file string) error {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage.NewClient: %v", err)
+	}
+	defer client.Close()
+	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
+	defer cancel()
+
+	// Upload an object with storage.Writer.
+	f, err := os.Open(file)
+	if err != nil {
+		return fmt.Errorf("os.Open: %v", err)
+	}
+	wc := client.Bucket(bucket).Object(object).NewWriter(ctx)
+	if _, err = io.Copy(wc, f); err != nil {
+		return fmt.Errorf("io.Copy: %v", err)
+	}
+	if err := wc.Close(); err != nil {
+		return fmt.Errorf("Writer.Close: %v", err)
+	}
+	f.Close()
+	fmt.Printf("%v uploaded.\n", object)
+	return nil
 }
+
+// BulkUpload uploads files in bulk
+func BulkUpload(bucket, folder, rootPath string) error {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	fileList, objPath, err := internal.PathWalk(rootPath)
+	if err != nil {
+		return err
+	}
+	_ = objPath
+	isFile := false
+
+	for i:=0; i <len(fileList);i++ {
+		// Open and read local file
+		info, err := os.Stat(fileList[i])
+		if os.IsNotExist(err) {
+			log.Fatal("File does not exist.")
+		}
+		if info.IsDir() {
+			continue
+		} else {
+			isFile = true
+		}
+		if isFile && !strings.Contains(fileList[i], "__pycache__") {
+			f, err := os.Open(fileList[i])
+			if err != nil {
+				return fmt.Errorf("os.Open: %v", err)
+			}
+
+			ctx, cancel := context.WithTimeout(ctx, time.Second*50)
+			defer cancel()
+
+			// Upload an object with storage.Writer.
+			object := objPath[i]
+			if folder != "" {
+				object = fmt.Sprintf("%s/%s", folder, objPath[i])
+			}
+			wc := client.Bucket(bucket).Object(object).NewWriter(ctx)
+			if _, err = io.Copy(wc, f); err != nil {
+				return fmt.Errorf("io.Copy: %v", err)
+			}
+			if err := wc.Close(); err != nil {
+				return fmt.Errorf("Writer.Close: %v", err)
+			}
+			f.Close()
+			fmt.Printf("%v uploaded.\n", objPath[i])
+		}
+	}
+
+	return nil
+}
+
+func BulkDownload(bucket, folder, localDir string) error {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
+	defer cancel()
+
+	objects, err := ListFiles(bucket, folder)
+	if err != nil {
+		return fmt.Errorf("ListFiles: %s", err)
+	}
+
+	for i:=0; i <len(objects); i++ {
+		rc, err := client.Bucket(bucket).Object(objects[i]).NewReader(ctx)
+		if err != nil {
+			return fmt.Errorf("Object(%q).NewReader: %v", objects[i], err)
+		}
+		defer rc.Close()
+
+		data, err := ioutil.ReadAll(rc)
+		if err != nil {
+			return fmt.Errorf("ioutil.ReadAll: %v", err)
+		}
+		file := filepath.Join(localDir, objects[i])
+		dir := strings.Join(strings.Split(file, "/")[0:len(strings.Split(file, "/")) - 1], "/")
+
+		if dir != "" {
+			err = os.MkdirAll(dir, os.ModePerm)
+			if err != nil {
+				return fmt.Errorf("error creating directory: %v", err)
+			}
+		}
+		err = ioutil.WriteFile(file, data, 0644)
+		if err != nil {
+			return fmt.Errorf("error writing to file: %v", err)
+		}
+		fmt.Printf("%v downloaded.\n", objects[i])
+	}
+	return nil
+}
+
+func DeleteFile(bucket, object string) error {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	o := client.Bucket(bucket).Object(object)
+	if err := o.Delete(ctx); err != nil {
+		return fmt.Errorf("Object(%q).Delete: %v", object, err)
+	}
+	fmt.Printf("%v deleted.\n", object)
+	return nil
+}
+
+func ListFiles(bucket string, prefix string) ([]string, error) {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	var objectPath []string
+	if err != nil {
+		return nil, fmt.Errorf("storage.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
+	defer cancel()
+
+	it := client.Bucket(bucket).Objects(ctx, nil)
+	if prefix != "" {
+		it = client.Bucket(bucket).Objects(ctx, &storage.Query{Prefix: prefix})
+	}
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("Bucket(%q).Objects: %v", bucket, err)
+		}
+		if !strings.HasSuffix(attrs.Name, "/") {
+			objectPath = append(objectPath, attrs.Name)
+		}
+	}
+	return objectPath, nil
+}
+
+// shell out to call gsutil
+//func gsutil(args ...string) ([]byte, error) {
+//	c := exec.Command("gsutil", args...)
+//	log.Printf("running gsutil %s", strings.Join(args, " "))
+//	return c.CombinedOutput()
+//}
 
 func (c *ComposerEnv) Configure() error {
 	subCmdArgs := []string{
@@ -147,9 +330,17 @@ func (c *ComposerEnv) Configure() error {
 }
 
 func (c *ComposerEnv) SyncPlugins() error {
-	pluginsSuffix := strings.Replace(c.DagBucketPrefix, "/dags", "/plugins", 1)
-	log.Printf("syncing plugins from %s to %s\n", c.LocalPluginsDir, pluginsSuffix)
-	_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalPluginsDir, pluginsSuffix)
+	bucket := strings.TrimSuffix(strings.TrimPrefix(c.DagBucketPrefix, "gs://"), "/dags")
+
+	//pluginsSuffix := strings.Replace(c.DagBucketPrefix, "/dags", "/plugins", 1)
+	//log.Printf("syncing plugins from %s to %s\n", c.LocalPluginsDir, pluginsSuffix)
+	//_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalPluginsDir, pluginsSuffix)
+	//err = BulkDownload(bucket, "dags/", "/tmp/")
+	//if err != nil {
+	//	return err
+	//}
+	log.Printf("syncing plugins from %s\n", c.LocalPluginsDir)
+	err := BulkUpload(bucket, "plugins", c.LocalPluginsDir)
 	if err != nil {
 		return err
 	}
@@ -157,9 +348,12 @@ func (c *ComposerEnv) SyncPlugins() error {
 }
 
 func (c *ComposerEnv) SyncData() error {
-	dataSuffix := strings.Replace(c.DagBucketPrefix, "/dags", "/data", 1)
-	log.Printf("syncing data from %s to %s\n", c.LocalDataDir, dataSuffix)
-	_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalDataDir, dataSuffix)
+	bucket := strings.TrimSuffix(strings.TrimPrefix(c.DagBucketPrefix, "gs://"), "/dags")
+	//dataSuffix := strings.Replace(c.DagBucketPrefix, "/dags", "/data", 1)
+	//log.Printf("syncing data from %s to %s\n", c.LocalDataDir, dataSuffix)
+	//_, err := gsutil("-m", "rsync", "-r", "-d", c.LocalDataDir, dataSuffix)
+	log.Printf("syncing data from %s\n", c.LocalDataDir)
+	err := BulkUpload(bucket, "data", c.LocalDataDir)
 	if err != nil {
 		return err
 	}
@@ -465,7 +659,8 @@ func FindDagFilesInLocalTree(dagsRoot string, dagNames map[string]bool) (map[str
 
 // FindDagFilesInGcsPrefix necessary find the file path of a dag that has been deleted from VCS
 func FindDagFilesInGcsPrefix(prefix string, dagFileNames map[string]bool) (map[string][]string, error) {
-	dir, err := ioutil.TempDir("", "gcsDags_")
+	bucket := strings.TrimSuffix(strings.TrimPrefix(prefix, "gs://"), "/dags")
+	dir, err := ioutil.TempDir("/tmp", "gcsDags_")
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp dir to pull gcs dags: %v", err)
 	}
@@ -473,10 +668,14 @@ func FindDagFilesInGcsPrefix(prefix string, dagFileNames map[string]bool) (map[s
 
 	// copy gcs dags dir to local temp dir
 	log.Printf("pulling down %v", prefix)
-	_, err = gsutil("-m", "cp", "-r", prefix, dir)
+	err = BulkDownload(bucket, "dags/", dir)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching dags dir from GCS: %v", err)
+		return nil, err
 	}
+	//_, err = gsutil("-m", "cp", "-r", prefix, dir)
+	//if err != nil {
+	//	return nil, fmt.Errorf("error fetching dags dir from GCS: %v", err)
+	//}
 	return FindDagFilesInLocalTree(filepath.Join(dir, "dags"), dagFileNames)
 }
 
@@ -558,6 +757,7 @@ func (c *ComposerEnv) GetStopAndStartDags(filename string) (map[string]string, m
 // ComposerEnv.stopDag pauses the dag, removes the dag definition file from gcs
 // and deletes the DAG from the airflow db.
 func (c *ComposerEnv) stopDag(dag string, relPath string, wg *sync.WaitGroup) (err error) {
+	bucket := strings.TrimSuffix(strings.TrimPrefix(c.DagBucketPrefix, "gs://"), "/dags")
 	defer wg.Done()
 	log.Printf("pausing dag: %v with relPath: %v", dag, relPath)
 	out, err := c.Run("pause", dag)
@@ -572,7 +772,8 @@ func (c *ComposerEnv) stopDag(dag string, relPath string, wg *sync.WaitGroup) (e
 
 	gcs.Path = path.Join(gcs.Path, relPath)
 	log.Printf("deleting %v", gcs.String())
-	out, err = gsutil("rm", gcs.String())
+	//out, err = gsutil("rm", gcs.String())
+	err = DeleteFile(bucket, fmt.Sprintf("dags/%s", relPath))
 	if err != nil {
 		panic("error deleting from gcs")
 	}
@@ -638,6 +839,7 @@ func (c *ComposerEnv) waitForDeploy(dag string) error {
 // ComposerEnv.startDag copies a DAG definition file to GCS and waits until you can
 // successfully unpause.
 func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg *sync.WaitGroup) error {
+	bucket := strings.TrimSuffix(strings.TrimPrefix(c.DagBucketPrefix, "gs://"), "/dags")
 	defer wg.Done()
 	loc := filepath.Join(dagsFolder, relPath)
 	gcs, err := url.Parse(c.DagBucketPrefix)
@@ -645,10 +847,14 @@ func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg
 		return fmt.Errorf("error parsing dags prefix %v", err)
 	}
 	gcs.Path = path.Join(gcs.Path, relPath)
-	_, err = gsutil("cp", loc, gcs.String())
+	err = Upload(bucket, fmt.Sprintf("dags/%s", relPath), loc)
 	if err != nil {
 		return fmt.Errorf("error copying file %v to gcs: %v", loc, err)
 	}
+	//_, err = gsutil("cp", loc, gcs.String())
+	//if err != nil {
+	//	return fmt.Errorf("error copying file %v to gcs: %v", loc, err)
+	//}
 	c.waitForDeploy(dag)
 	return err
 }
