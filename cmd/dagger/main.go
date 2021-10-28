@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/netf/dagger/pkg/deploy"
+	"github.com/inshur/dagger/pkg/deploy"
 	"github.com/urfave/cli"
 	"log"
 	"os"

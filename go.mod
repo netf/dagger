@@ -1,4 +1,4 @@
-module github.com/netf/dagger
+module github.com/inshur/dagger
 
 go 1.16
 

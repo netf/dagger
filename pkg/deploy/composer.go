@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/bmatcuk/doublestar"
-	"github.com/netf/dagger/internal"
-	"github.com/netf/dagger/pkg/gcshasher"
+	"github.com/inshur/dagger/internal"
+	"github.com/inshur/dagger/pkg/gcshasher"
 	"google.golang.org/api/iterator"
 	"gopkg.in/yaml.v2"
 	"io"
@@ -146,7 +146,9 @@ func Upload(bucket, object, file string) error {
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close: %v", err)
 	}
-	f.Close()
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("File.Close: %v", err)
+	}
 	fmt.Printf("%v uploaded.\n", object)
 	return nil
 }
@@ -199,7 +201,9 @@ func BulkUpload(bucket, folder, rootPath string) error {
 			if err := wc.Close(); err != nil {
 				return fmt.Errorf("Writer.Close: %v", err)
 			}
-			f.Close()
+			if err = f.Close(); err != nil {
+				return fmt.Errorf("File.Close: %v", err)
+			}
 			fmt.Printf("%v uploaded.\n", objPath[i])
 		}
 	}
@@ -824,6 +828,11 @@ func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg
 		return fmt.Errorf("error parsing dags prefix %v", err)
 	}
 	gcs.Path = path.Join(gcs.Path, relPath)
+	// remove DAG first before uploading it
+	err = DeleteFile(bucket, fmt.Sprintf("dags/%s", relPath))
+	if err != nil {
+		fmt.Printf("Cant delete %s\n", fmt.Sprintf("dags/%s", relPath))
+	}
 	err = Upload(bucket, fmt.Sprintf("dags/%s", relPath), loc)
 	if err != nil {
 		return fmt.Errorf("error copying file %v to gcs: %v", loc, err)
