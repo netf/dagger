@@ -831,7 +831,7 @@ func (c *ComposerEnv) startDag(dagsFolder string, dag string, relPath string, wg
 	// remove DAG first before uploading it
 	err = DeleteFile(bucket, fmt.Sprintf("dags/%s", relPath))
 	if err != nil {
-		fmt.Printf("Cant delete %s\n", fmt.Sprintf("dags/%s", relPath))
+		fmt.Printf("Cant delete dags/%s\n", relPath)
 	}
 	err = Upload(bucket, fmt.Sprintf("dags/%s", relPath), loc)
 	if err != nil {
