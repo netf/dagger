@@ -330,11 +330,11 @@ func (c *ComposerEnv) Configure() error {
 	yaml.Unmarshal(data, &config)
 	c.DagBucketPrefix = config.Config.DagGcsPrefix
 	c.ImageVersion = config.Config.SoftwareConfig.ImageVersion
-	fmt.Printf("Test: %s", c.ImageVersion)
 	return nil
 }
 
 func (c *ComposerEnv) SyncPlugins() error {
+	fmt.Printf("TEST: %s\n", c.ImageVersion)
 	bucket := strings.TrimSuffix(strings.TrimPrefix(c.DagBucketPrefix, "gs://"), "/dags")
 	log.Printf("syncing plugins from %s\n", c.LocalPluginsDir)
 	err := BulkUpload(bucket, "plugins", c.LocalPluginsDir)
