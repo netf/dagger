@@ -330,7 +330,7 @@ func (c *ComposerEnv) Configure() error {
 	yaml.Unmarshal(data, &config)
 	c.DagBucketPrefix = config.Config.DagGcsPrefix
 	c.ImageVersion = config.Config.SoftwareConfig.ImageVersion
-	fmt.Println(c.ImageVersion)
+	fmt.Printf("Test: %s", c.ImageVersion)
 	return nil
 }
 
