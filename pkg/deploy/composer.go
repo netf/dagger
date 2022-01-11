@@ -24,7 +24,6 @@ import (
 	"github.com/inshur/dagger/internal"
 	"github.com/inshur/dagger/pkg/gcshasher"
 	"google.golang.org/api/iterator"
-	"gopkg.in/yaml.v2"
 )
 
 // ComposerEnv is a lightweight representaataion of Cloud Composer environment
@@ -61,7 +60,10 @@ type Connection struct {
 
 type Describe struct {
 	Config struct {
-		DagGcsPrefix string `yaml:"dagGcsPrefix"`
+		DagGcsPrefix   string `yaml:"dagGcsPrefix"`
+		SoftwareConfig struct {
+			ImageVersion string `yaml:"imageVersion"`
+		}
 	}
 }
 
@@ -325,6 +327,7 @@ func (c *ComposerEnv) Configure() error {
 	}
 	yaml.Unmarshal(data, &config)
 	c.DagBucketPrefix = config.Config.DagGcsPrefix
+	fmt.Println(config.Config.SoftwareConfig.ImageVersion)
 	return nil
 }
 
