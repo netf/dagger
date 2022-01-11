@@ -62,11 +62,12 @@ type Connection struct {
 
 type Describe struct {
 	Config struct {
-		DagGcsPrefix   string `yaml:"dagGcsPrefix"`
-		SoftwareConfig struct {
-			ImageVersion string `yaml:"imageVersion"`
-		}
+		DagGcsPrefix string `yaml:"dagGcsPrefix"`
+		SoftwareConfig
 	}
+}
+type SoftwareConfig struct {
+	ImageVersion string `yaml:"imageVersion"`
 }
 
 func logDagList(a map[string]bool) {
@@ -327,7 +328,6 @@ func (c *ComposerEnv) Configure() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(data)
 	yaml.Unmarshal(data, &config)
 	c.DagBucketPrefix = config.Config.DagGcsPrefix
 	c.ImageVersion = config.Config.SoftwareConfig.ImageVersion
