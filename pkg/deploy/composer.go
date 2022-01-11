@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
 	"log"
@@ -33,6 +33,7 @@ type ComposerEnv struct {
 	Project         string
 	Location        string
 	DagBucketPrefix string
+	ImageVersion    string
 	LocalDagsDir    string
 	LocalPluginsDir string
 	LocalDataDir    string
@@ -56,7 +57,7 @@ type Connection struct {
 	Login    string                 `json:"login"`
 	Host     string                 `json:"host"`
 	Extra    map[string]interface{} `json:"extra"`
-	Test     string                 `json:"test`
+	Test     string                 `json:"test"`
 }
 
 type Describe struct {
@@ -328,7 +329,8 @@ func (c *ComposerEnv) Configure() error {
 	}
 	yaml.Unmarshal(data, &config)
 	c.DagBucketPrefix = config.Config.DagGcsPrefix
-	fmt.Println(config.Config.SoftwareConfig.ImageVersion)
+	c.ImageVersion = config.Config.SoftwareConfig.ImageVersion
+	fmt.Println(c.ImageVersion)
 	return nil
 }
 
