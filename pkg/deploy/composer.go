@@ -2,15 +2,9 @@ package deploy
 
 import (
 	"bufio"
-	"cloud.google.com/go/storage"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/bmatcuk/doublestar"
-	"github.com/inshur/dagger/internal"
-	"github.com/inshur/dagger/pkg/gcshasher"
-	"google.golang.org/api/iterator"
-	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
 	"log"
@@ -24,6 +18,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"cloud.google.com/go/storage"
+	"github.com/bmatcuk/doublestar"
+	"github.com/inshur/dagger/internal"
+	"github.com/inshur/dagger/pkg/gcshasher"
+	"google.golang.org/api/iterator"
+	"gopkg.in/yaml.v2"
 )
 
 // ComposerEnv is a lightweight representaataion of Cloud Composer environment
@@ -46,7 +47,7 @@ type Dag struct {
 }
 
 type Connection struct {
-	Name      string                `json:"name"`
+	Name     string                 `json:"name"`
 	Uri      string                 `json:"uri"`
 	Type     string                 `json:"type"`
 	Schema   string                 `json:"schema"`
@@ -55,6 +56,7 @@ type Connection struct {
 	Login    string                 `json:"login"`
 	Host     string                 `json:"host"`
 	Extra    map[string]interface{} `json:"extra"`
+	Test     string                 `json:"test`
 }
 
 type Describe struct {
@@ -169,7 +171,7 @@ func BulkUpload(bucket, folder, rootPath string) error {
 	_ = objPath
 	isFile := false
 
-	for i:=0; i <len(fileList);i++ {
+	for i := 0; i < len(fileList); i++ {
 		// Open and read local file
 		info, err := os.Stat(fileList[i])
 		if os.IsNotExist(err) {
@@ -227,7 +229,7 @@ func BulkDownload(bucket, folder, localDir string) error {
 		return fmt.Errorf("ListFiles: %s", err)
 	}
 
-	for i:=0; i <len(objects); i++ {
+	for i := 0; i < len(objects); i++ {
 		rc, err := client.Bucket(bucket).Object(objects[i]).NewReader(ctx)
 		if err != nil {
 			return fmt.Errorf("Object(%q).NewReader: %v", objects[i], err)
@@ -239,7 +241,7 @@ func BulkDownload(bucket, folder, localDir string) error {
 			return fmt.Errorf("ioutil.ReadAll: %v", err)
 		}
 		file := filepath.Join(localDir, objects[i])
-		dir := strings.Join(strings.Split(file, "/")[0:len(strings.Split(file, "/")) - 1], "/")
+		dir := strings.Join(strings.Split(file, "/")[0:len(strings.Split(file, "/"))-1], "/")
 
 		if dir != "" {
 			err = os.MkdirAll(dir, os.ModePerm)

@@ -27,61 +27,61 @@ func main() {
 
 	flags := []cli.Flag{
 		cli.StringFlag{
-			Name:  "list",
-			Value: "./config/running_dags.txt",
+			Name:     "list",
+			Value:    "./config/running_dags.txt",
 			Required: true,
-			Usage: "File with DAGs to run",
+			Usage:    "File with DAGs to run",
 		},
 		cli.StringFlag{
-			Name:  "dags",
-			Value: "./dags",
-			Usage: "DAGs folder",
+			Name:     "dags",
+			Value:    "./dags",
+			Usage:    "DAGs folder",
 			Required: true,
 		},
 		cli.StringFlag{
-			Name:  "plugins",
-			Value: "./plugins",
-			Usage: "Airflow plugins",
+			Name:     "plugins",
+			Value:    "./plugins",
+			Usage:    "Airflow plugins",
 			Required: false,
 		},
 		cli.StringFlag{
-			Name:  "data",
-			Value: "./data",
-			Usage: "Airflow data (ie: sql files)",
+			Name:     "data",
+			Value:    "./data",
+			Usage:    "Airflow data (ie: sql files)",
 			Required: false,
 		},
 		cli.StringFlag{
 			Name:     "project",
 			Value:    "",
 			Required: true,
-			Usage: "GCP project name",
+			Usage:    "GCP project name",
 		},
 		cli.StringFlag{
 			Name:     "location",
 			Value:    "",
 			Required: true,
-			Usage: "GCP Composer location",
+			Usage:    "GCP Composer location",
 		},
 		cli.StringFlag{
 			Name:     "name",
 			Value:    "",
 			Required: true,
-			Usage: "Name of GCP Composer environment",
+			Usage:    "Name of GCP Composer environment",
 		},
 		cli.StringFlag{
 			Name:     "variables",
 			Value:    "",
 			Required: false,
-			Usage: "Airflow variables config file",
+			Usage:    "Airflow variables config file",
 		},
 		cli.StringFlag{
 			Name:     "connections",
 			Value:    "",
 			Required: false,
-			Usage: "Airflow connections config file",
+			Usage:    "Airflow connections config file",
 		},
 		cli.BoolFlag{
-			Name:     "loop",
+			Name:  "loop",
 			Usage: "Run Dagger in a loop (useful for continues sync)",
 		},
 	}
@@ -99,10 +99,10 @@ func main() {
 					Name:            c.String("name"),
 					Project:         c.String("project"),
 					Location:        c.String("location"),
-					LocalDagsDir: 	 c.String("dags"),
+					LocalDagsDir:    c.String("dags"),
 					LocalPluginsDir: c.String("plugins"),
-					LocalDataDir: 	 c.String("data"),
-					VariablesFile: 	 c.String("variables"),
+					LocalDataDir:    c.String("data"),
+					VariablesFile:   c.String("variables"),
 					ConnectionsFile: c.String("connections"),
 				}
 				err := composer.Configure()
@@ -117,14 +117,14 @@ func main() {
 				if err != nil {
 					log.Fatalf("sync data error: %s", err)
 				}
-				err = composer.ImportVariables()
-				if err != nil {
-					log.Fatalf("import variables error: %s", err)
-				}
-				err = composer.ImportConnections()
-				if err != nil {
-					log.Fatalf("import variables error: %s", err)
-				}
+				//err = composer.ImportVariables()
+				//if err != nil {
+				//	log.Fatalf("import variables error: %s", err)
+				//}
+				//err = composer.ImportConnections()
+				//if err != nil {
+				//	log.Fatalf("import connections error: %s", err)
+				//}
 				dagsToStop, dagsToStart := composer.GetStopAndStartDags(c.String("list"))
 				composer.StopDags(dagsToStop)
 				composer.StartDags(c.String("dags"), dagsToStart)
