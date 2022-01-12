@@ -33,7 +33,6 @@ type ComposerEnv struct {
 	Project         string
 	Location        string
 	DagBucketPrefix string
-	ImageVersion    string
 	LocalDagsDir    string
 	LocalPluginsDir string
 	LocalDataDir    string
@@ -62,10 +61,7 @@ type Connection struct {
 
 type Describe struct {
 	Config struct {
-		DagGcsPrefix   string `yaml:"dagGcsPrefix"`
-		SoftwareConfig struct {
-			ImageVersion string `yaml:"gkeCluster"`
-		}
+		DagGcsPrefix string `yaml:"dagGcsPrefix"`
 	}
 }
 
@@ -329,12 +325,10 @@ func (c *ComposerEnv) Configure() error {
 	}
 	yaml.Unmarshal(data, &config)
 	c.DagBucketPrefix = config.Config.DagGcsPrefix
-	c.ImageVersion = config.Config.SoftwareConfig.ImageVersion
 	return nil
 }
 
 func (c *ComposerEnv) SyncPlugins() error {
-	fmt.Printf("TEST2: %s\n", c.ImageVersion)
 	bucket := strings.TrimSuffix(strings.TrimPrefix(c.DagBucketPrefix, "gs://"), "/dags")
 	log.Printf("syncing plugins from %s\n", c.LocalPluginsDir)
 	err := BulkUpload(bucket, "plugins", c.LocalPluginsDir)
@@ -463,7 +457,8 @@ func parseListDagsOuput(out []byte) map[string]bool {
 // GetRunningDags lists dags currently running in Composer Environment.
 func (c *ComposerEnv) GetRunningDags() (map[string]bool, error) {
 	runningDags := make(map[string]bool)
-	out, err := c.Run("list_dags")
+	//out, err := c.Run("list_dags")
+	out, err := c.Run("beta", "dags", "list")
 	if err != nil {
 		log.Fatalf("list_dags failed: %s with %s", err, out)
 	}
