@@ -404,7 +404,7 @@ func (c *ComposerEnv) ImportConnections() error {
 
 func (c *ComposerEnv) assembleComposerRunCmd(subCmd string, args ...string) []string {
 	subCmdArgs := []string{
-		"beta", "composer", "environments", "run",
+		"composer", "environments", "run",
 		c.Name,
 		fmt.Sprintf("--location=%s", c.Location),
 		subCmd}
@@ -457,8 +457,7 @@ func parseListDagsOuput(out []byte) map[string]bool {
 // GetRunningDags lists dags currently running in Composer Environment.
 func (c *ComposerEnv) GetRunningDags() (map[string]bool, error) {
 	runningDags := make(map[string]bool)
-	//out, err := c.Run("list_dags")
-	out, err := c.Run("dags", "list")
+	out, err := c.Run("list_dags")
 	if err != nil {
 		log.Fatalf("list_dags failed: %s with %s", err, out)
 	}
