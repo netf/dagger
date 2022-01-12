@@ -62,12 +62,11 @@ type Connection struct {
 
 type Describe struct {
 	Config struct {
-		DagGcsPrefix string `yaml:"dagGcsPrefix"`
-		SoftwareConfig
+		DagGcsPrefix   string `yaml:"dagGcsPrefix"`
+		SoftwareConfig struct {
+			ImageVersion string `yaml:"gkeCluster"`
+		}
 	}
-}
-type SoftwareConfig struct {
-	ImageVersion string `yaml:"imageVersion"`
 }
 
 func logDagList(a map[string]bool) {
@@ -335,7 +334,7 @@ func (c *ComposerEnv) Configure() error {
 }
 
 func (c *ComposerEnv) SyncPlugins() error {
-	fmt.Printf("TEST: %s\n", c.ImageVersion)
+	fmt.Printf("TEST2: %s\n", c.ImageVersion)
 	bucket := strings.TrimSuffix(strings.TrimPrefix(c.DagBucketPrefix, "gs://"), "/dags")
 	log.Printf("syncing plugins from %s\n", c.LocalPluginsDir)
 	err := BulkUpload(bucket, "plugins", c.LocalPluginsDir)
