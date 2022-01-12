@@ -442,7 +442,7 @@ func parseListDagsOuput(out []byte) map[string]bool {
 		}
 		dagsIdx++
 		if dagsIdx >= len(outArr) {
-			log.Fatalf("list_dags output did not contain expected separators: %s", out)
+			log.Fatalf("dags list output did not contain expected separators: %s", out)
 		}
 	}
 
