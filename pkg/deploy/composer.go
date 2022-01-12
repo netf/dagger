@@ -432,18 +432,20 @@ func parseListDagsOuput(out []byte) map[string]bool {
 	fmt.Println(outArr)
 
 	// Find the DAGs in output
-	dagSep := "-------------------------------------------------------------------"
-	var dagsIdx, nSep int
+	//dagSep := "-------------------------------------------------------------------"
+	dagSep := "="
+	var dagsIdx int
 
-	for nSep < 2 {
-		if outArr[dagsIdx] == dagSep {
-			nSep++
+	for dagsIdx <= len(outArr) {
+		if strings.HasPrefix(outArr[dagsIdx], dagSep) {
+			break
 		}
 		dagsIdx++
 		if dagsIdx >= len(outArr) {
 			log.Fatalf("list_dags output did not contain expected separators: %s", out)
 		}
 	}
+	fmt.Println(dagsIdx)
 
 	// Ignore empty newline and airflow_monitoring dag.
 	for _, dag := range outArr[dagsIdx:] {
