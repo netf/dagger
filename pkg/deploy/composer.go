@@ -429,10 +429,10 @@ func (c *ComposerEnv) Run(subCmd string, args ...string) ([]byte, error) {
 func parseListDagsOuput(out []byte) map[string]bool {
 	runningDags := make(map[string]bool)
 	outArr := strings.Split(string(out[:]), "\n")
+	fmt.Println(outArr)
 
 	// Find the DAGs in output
-	//dagSep := "-------------------------------------------------------------------"
-	dagSep := "===================+=======================+=========+======="
+	dagSep := "-------------------------------------------------------------------"
 	var dagsIdx, nSep int
 
 	for nSep < 2 {
