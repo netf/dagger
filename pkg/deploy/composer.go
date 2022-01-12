@@ -431,7 +431,8 @@ func parseListDagsOuput(out []byte) map[string]bool {
 	outArr := strings.Split(string(out[:]), "\n")
 
 	// Find the DAGs in output
-	dagSep := "-------------------------------------------------------------------"
+	//dagSep := "-------------------------------------------------------------------"
+	dagSep := "===================+=======================+=========+======="
 	var dagsIdx, nSep int
 
 	for nSep < 2 {
