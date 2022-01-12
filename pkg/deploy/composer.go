@@ -448,6 +448,8 @@ func parseListDagsOuput(out []byte) map[string]bool {
 
 	// Ignore empty newline and airflow_monitoring dag.
 	for _, dag := range outArr[dagsIdx:] {
+		fmt.Println(strings.Split(dag, "|")[0])
+		dag = strings.Split(dag, "|")[0]
 		if dag != "" && dag != "airflow_monitoring" {
 			runningDags[dag] = true
 		}
