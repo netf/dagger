@@ -437,6 +437,7 @@ func parseListDagsOuput(out []byte) map[string]bool {
 
 	for dagsIdx < len(outArr) {
 		if strings.HasPrefix(outArr[dagsIdx], dagSep) {
+			dagsIdx++
 			break
 		}
 		dagsIdx++
