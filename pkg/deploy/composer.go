@@ -432,11 +432,10 @@ func parseListDagsOuput(out []byte) map[string]bool {
 	fmt.Println(outArr)
 
 	// Find the DAGs in output
-	//dagSep := "-------------------------------------------------------------------"
 	dagSep := "="
 	var dagsIdx int
 
-	for dagsIdx <= len(outArr) {
+	for dagsIdx < len(outArr) {
 		if strings.HasPrefix(outArr[dagsIdx], dagSep) {
 			break
 		}
