@@ -404,7 +404,7 @@ func (c *ComposerEnv) ImportConnections() error {
 
 func (c *ComposerEnv) assembleComposerRunCmd(subCmd string, args ...string) []string {
 	subCmdArgs := []string{
-		"composer", "environments", "run",
+		"beta", "composer", "environments", "run",
 		c.Name,
 		fmt.Sprintf("--location=%s", c.Location),
 		subCmd}
@@ -429,23 +429,26 @@ func (c *ComposerEnv) Run(subCmd string, args ...string) ([]byte, error) {
 func parseListDagsOuput(out []byte) map[string]bool {
 	runningDags := make(map[string]bool)
 	outArr := strings.Split(string(out[:]), "\n")
+	fmt.Println(outArr)
 
 	// Find the DAGs in output
-	dagSep := "-------------------------------------------------------------------"
-	var dagsIdx, nSep int
+	dagSep := "="
+	var dagsIdx int
 
-	for nSep < 2 {
-		if outArr[dagsIdx] == dagSep {
-			nSep++
+	for dagsIdx < len(outArr) {
+		if strings.HasPrefix(outArr[dagsIdx], dagSep) {
+			dagsIdx++
+			break
 		}
 		dagsIdx++
 		if dagsIdx >= len(outArr) {
-			log.Fatalf("list_dags output did not contain expected separators: %s", out)
+			log.Fatalf("dags list output did not contain expected separators: %s", out)
 		}
 	}
 
 	// Ignore empty newline and airflow_monitoring dag.
 	for _, dag := range outArr[dagsIdx:] {
+		dag = strings.Split(dag, "|")[0]
 		if dag != "" && dag != "airflow_monitoring" {
 			runningDags[dag] = true
 		}
@@ -457,7 +460,7 @@ func parseListDagsOuput(out []byte) map[string]bool {
 // GetRunningDags lists dags currently running in Composer Environment.
 func (c *ComposerEnv) GetRunningDags() (map[string]bool, error) {
 	runningDags := make(map[string]bool)
-	out, err := c.Run("list_dags")
+	out, err := c.Run("dags", "list")
 	if err != nil {
 		log.Fatalf("list_dags failed: %s with %s", err, out)
 	}
